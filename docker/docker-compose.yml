@@ -1,0 +1,48 @@
+name: ollama-anythingllm
+services:
+  
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - /Users/pfilkovskyi/.ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+  
+  postgres-db:
+    image: postgres:16.4-alpine3.20
+    container_name: postgres-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - /Users/pfilkovskyi/.postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+  
+  anythingllm:
+    # image: anythingllm:
+    image: mintplexlabs/anythingllm:pg
+    container_name: anythingllm
+    ports:
+      - "3001:3001"
+    cap_add:
+      # elevated permissions for model execution
+      # needed for AnythingLLM to be able use specialized libraries (PDF Parsing, Web scraping, etc)
+      - SYS_ADMIN
+    environment:
+      - STORAGE_DIR=/app/server/storage
+      # Internal URL for AnythingLLM to talk to Ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-db:5432/anythingllm
+    volumes:
+      - /Users/pfilkovskyi/.anythingllm/.env:/app/server/.env
+      - /Users/pfilkovskyi/.anythingllm/storage:/app/server/storage
+      # additional mount point for projects:
+      - /Users/pfilkovskyi/Projects:/app/server/storage/projects:ro
+    depends_on:
+      - ollama
+      - postgres-db
+    restart: unless-stopped
